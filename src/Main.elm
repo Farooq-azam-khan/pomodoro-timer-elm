@@ -291,7 +291,8 @@ update msg model =
             ( { model
                 | set_work_time = new_set_worktime
                 , work_time = tuple_to_sec new_set_worktime
-                , active_timer = Work Paused
+
+                -- , active_timer = Work Paused
               }
             , Cmd.none
             )
@@ -304,7 +305,8 @@ update msg model =
             ( { model
                 | set_work_time = new_set_work_time
                 , work_time = tuple_to_sec new_set_work_time
-                , active_timer = Work Paused
+
+                --, active_timer = Work Paused
               }
             , Cmd.none
             )
@@ -317,7 +319,8 @@ update msg model =
             ( { model
                 | set_break_time = new_set_break_time
                 , break_time = tuple_to_sec new_set_break_time
-                , active_timer = Break Paused
+
+                -- , active_timer = Break Paused
               }
             , Cmd.none
             )
@@ -330,7 +333,8 @@ update msg model =
             ( { model
                 | set_break_time = new_set_break_time
                 , break_time = tuple_to_sec new_set_break_time
-                , active_timer = Break Paused
+
+                -- , active_timer = Break Paused
               }
             , Cmd.none
             )
