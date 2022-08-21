@@ -5,16 +5,18 @@ import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (alt, class, href, src, target, type_, value)
 import Html.Events exposing (onClick, onInput)
-import Task
 import Time
 import Url exposing (Url)
 
 
+type TimerActivity
+    = Paused
+    | Active
+
+
 type PomodoroType
-    = Break
-    | Work
-    | PauseWork
-    | PauseBreak
+    = Break TimerActivity
+    | Work TimerActivity
 
 
 type Second
@@ -165,50 +167,34 @@ view model =
             [ class "flex flex-col space-y-6 items-center mx-5 sm:mx-0 sm:mx-auto lg sm:max-w-xl lg:max-w-3xl mt-10 space-x-10" ]
             [ div []
                 [ case model.active_timer of
-                    Work ->
+                    Work _ ->
                         h1 [ class "text-5xl font-bold text-center" ] [ text "WORK TIMER" ]
 
-                    Break ->
-                        h1 [ class "text-5xl font-bold text-center" ] [ text "BREAK TIMER" ]
-
-                    PauseWork ->
-                        h1 [ class "text-5xl font-bold text-center" ] [ text "WORK TIMER" ]
-
-                    PauseBreak ->
+                    Break _ ->
                         h1 [ class "text-5xl font-bold text-center" ] [ text "BREAK TIMER" ]
                 , case model.active_timer of
-                    Work ->
+                    Work _ ->
                         h2 [ class "font-semibold text-[15rem]" ]
                             [ text <| sec_to_string model.work_time
                             ]
 
-                    PauseWork ->
-                        h2 [ class "font-semibold text-[15rem]" ]
-                            [ text <| sec_to_string model.work_time
-                            ]
-
-                    Break ->
-                        h2 [ class "font-semibold text-[15rem]" ]
-                            [ text <| sec_to_string model.break_time
-                            ]
-
-                    PauseBreak ->
+                    Break _ ->
                         h2 [ class "font-semibold text-[15rem]" ]
                             [ text <| sec_to_string model.break_time
                             ]
                 ]
             , div [ class "felx justify-between space-x-10" ]
                 [ case model.active_timer of
-                    Work ->
+                    Work Active ->
                         custom_button ToggleStartButton (text "PAUSE")
 
-                    PauseWork ->
+                    Work Paused ->
                         custom_button ToggleStartButton (text "START")
 
-                    Break ->
+                    Break Active ->
                         custom_button ToggleStartButton (text "PAUSE")
 
-                    PauseBreak ->
+                    Break Paused ->
                         custom_button ToggleStartButton (text "Start")
                 , custom_button Reset (text "RESET")
                 ]
@@ -261,7 +247,7 @@ update msg model =
             ( { model
                 | set_work_time = new_set_worktime
                 , work_time = tuple_to_sec new_set_worktime
-                , active_timer = PauseWork
+                , active_timer = Work Paused
               }
             , Cmd.none
             )
@@ -274,7 +260,7 @@ update msg model =
             ( { model
                 | set_work_time = new_set_work_time
                 , work_time = tuple_to_sec new_set_work_time
-                , active_timer = PauseWork
+                , active_timer = Work Paused
               }
             , Cmd.none
             )
@@ -287,7 +273,7 @@ update msg model =
             ( { model
                 | set_break_time = new_set_break_time
                 , break_time = tuple_to_sec new_set_break_time
-                , active_timer = PauseBreak
+                , active_timer = Break Paused
               }
             , Cmd.none
             )
@@ -300,37 +286,37 @@ update msg model =
             ( { model
                 | set_break_time = new_set_break_time
                 , break_time = tuple_to_sec new_set_break_time
-                , active_timer = PauseBreak
+                , active_timer = Break Paused
               }
             , Cmd.none
             )
 
         ToggleStartButton ->
             case model.active_timer of
-                PauseWork ->
-                    ( { model | active_timer = Work }, Cmd.none )
+                Work Paused ->
+                    ( { model | active_timer = Work Active }, Cmd.none )
 
-                PauseBreak ->
-                    ( { model | active_timer = Break }, Cmd.none )
+                Break Paused ->
+                    ( { model | active_timer = Break Active }, Cmd.none )
 
-                Work ->
-                    ( { model | active_timer = PauseWork }, Cmd.none )
+                Work Active ->
+                    ( { model | active_timer = Work Paused }, Cmd.none )
 
-                Break ->
-                    ( { model | active_timer = PauseBreak }, Cmd.none )
+                Break Active ->
+                    ( { model | active_timer = Break Paused }, Cmd.none )
 
         Reset ->
             ( { model
                 | work_time = tuple_to_sec model.set_work_time -- (min_to_sec <| Tuple.first model.set_work_time) + Tuple.second model.set_break_time
                 , break_time = tuple_to_sec model.set_break_time
-                , active_timer = PauseWork
+                , active_timer = Work Paused
               }
             , Cmd.none
             )
 
         Tick new_time ->
             case model.active_timer of
-                Break ->
+                Break Active ->
                     let
                         new_sec =
                             update_second_by model.break_time -1
@@ -340,7 +326,7 @@ update msg model =
                             if s < 0 then
                                 ( { model
                                     | break_time = tuple_to_sec model.set_break_time
-                                    , active_timer = Work
+                                    , active_timer = Work Active
                                     , work_time = tuple_to_sec model.set_work_time
                                   }
                                 , Cmd.none
@@ -349,7 +335,7 @@ update msg model =
                             else
                                 ( { model | break_time = new_sec }, Cmd.none )
 
-                Work ->
+                Work Active ->
                     let
                         new_sec =
                             update_second_by model.work_time -1
@@ -360,7 +346,7 @@ update msg model =
                                 ( { model
                                     | break_time = tuple_to_sec model.set_break_time
                                     , work_time = tuple_to_sec model.set_work_time
-                                    , active_timer = Break
+                                    , active_timer = Break Active
                                   }
                                 , Cmd.none
                                 )
@@ -386,10 +372,10 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.active_timer of
-        Work ->
+        Work Active ->
             Time.every 1000 Tick
 
-        Break ->
+        Break Active ->
             Time.every 1000 Tick
 
         _ ->
@@ -402,7 +388,7 @@ init _ _ key =
       , set_break_time = default_break_time
       , work_time = min_to_sec <| Tuple.first default_work_time
       , break_time = min_to_sec <| Tuple.first default_break_time
-      , active_timer = Work
+      , active_timer = Work Paused
       , key = key
       }
     , Cmd.none
