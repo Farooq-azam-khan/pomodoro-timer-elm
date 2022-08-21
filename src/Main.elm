@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (Minute(..), Model, Msg(..), PomodoroType(..), Second(..), TimerActivity(..), break_time, custom_button, custom_input, default_break_time, default_work_time, init, main, map_s, min_to_sec, sec_to_string, sec_to_tuple, subscriptions, tuple_to_sec, update, update_second_by, view, work_time)
 
 import Browser
 import Browser.Navigation as Nav
@@ -7,41 +7,6 @@ import Html.Attributes exposing (alt, class, href, src, target, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Time
 import Url exposing (Url)
-
-
-type TimerActivity
-    = Paused
-    | Active
-
-
-type PomodoroType
-    = Break TimerActivity
-    | Work TimerActivity
-
-
-type Second
-    = Second Int
-
-
-type Minute
-    = Minute Int
-
-
-min_to_sec : Minute -> Second
-min_to_sec minute =
-    case minute of
-        Minute min ->
-            Second (min * 60)
-
-
-type alias Model =
-    { set_work_time : ( Minute, Second )
-    , set_break_time : ( Minute, Second )
-    , work_time : Second
-    , break_time : Second
-    , active_timer : PomodoroType
-    , key : Nav.Key
-    }
 
 
 type Msg
@@ -57,10 +22,81 @@ type Msg
     | ClickedLink Browser.UrlRequest
 
 
+type alias Model =
+    { set_work_time : SetTime
+    , set_break_time : SetTime
+    , work_time : Second
+    , break_time : Second
+    , active_timer : PomodoroType
+    , key : Nav.Key
+    }
+
+
+type TimerActivity
+    = Paused
+    | Active
+
+
+type alias SetTime =
+    ( Minute, Second )
+
+
+type PomodoroType
+    = Break TimerActivity
+    | Work TimerActivity
+
+
+type Second
+    = Second Int
+
+
+type Minute
+    = Minute Int
+
+
+map_s : (Int -> b) -> Second -> b
+map_s f second =
+    case second of
+        Second s ->
+            f s
+
+
+map_min : (Int -> b) -> Minute -> b
+map_min f minute =
+    case minute of
+        Minute min ->
+            f min
+
+
+default_work_time : ( Minute, Second )
+default_work_time =
+    ( Minute 10, Second 0 )
+
+
+default_break_time : ( Minute, Second )
+default_break_time =
+    ( Minute 5, Second 0 )
+
+
+update_second_by : Second -> Int -> Second
+update_second_by second by =
+    map_s (\int_s -> Second (int_s + by)) second
+
+
+tuple_to_sec : ( Minute, Second ) -> Second
+tuple_to_sec ( min, Second sec ) =
+    map_s (\int_s -> Second (int_s + sec)) (min_to_sec min)
+
+
+min_to_sec : Minute -> Second
+min_to_sec minute =
+    map_min (\int_min -> Second (int_min * 60)) minute
+
+
 custom_button : msg -> Html msg -> Html msg
 custom_button msg children =
     button
-        [ class "bg-black px-7 py-2 text-2xl text-white rounded-md"
+        [ class "bg-indigo-700 px-7 py-2 text-2xl text-white rounded-md"
         , onClick msg
         ]
         [ children
@@ -78,52 +114,82 @@ custom_input time msg =
         []
 
 
-work_time : ( Minute, Second ) -> Html Msg
-work_time ( set_min, set_sec ) =
-    -- set_work_time =
-    let
-        ( Minute min, Second sec ) =
-            ( set_min, set_sec )
-
-        -- sec_to_tuple set_work_time
-    in
-    div []
-        [ h3 [ class "text-center" ]
-            [ text "Work Time"
+update_time_wrapper :
+    Minute
+    -> (String -> Msg)
+    -> Second
+    -> (String -> Msg)
+    -> Html Msg
+update_time_wrapper (Minute min) min_parser (Second sec) sec_parser =
+    div [ class "flex items-center py-3 space-x-2" ]
+        [ div [ class "flex items-center space-x-2" ]
+            [ label [] [ text "Mins" ]
+            , custom_input
+                min
+                min_parser
             ]
-        , div [ class "flex items-center py-3 space-x-2" ]
-            [ div []
-                [ div [] [ label [] [ text "Mins" ] ]
-                , div []
-                    [ custom_input min (\val -> UpdateWorkTimeMinute (Minute (Maybe.withDefault 0 (String.toInt val)))) ]
-                ]
-            , div []
-                [ div [] [ label [] [ text "Sec" ] ]
-                , div [] [ custom_input sec (\val -> UpdateWorkTimeSecond (Second (Maybe.withDefault 0 (String.toInt val)))) ]
-                ]
+        , div [ class "flex items-center space-x-2" ]
+            [ label [] [ text "Sec" ]
+            , custom_input
+                sec
+                sec_parser
             ]
         ]
 
 
-break_time : ( Minute, Second ) -> Html Msg
-break_time ( Minute min, Second sec ) =
-    -- set_break_time =
+work_time : ( Minute, Second ) -> Html Msg
+work_time ( min, sec ) =
+    let
+        parse_input =
+            \val ->
+                val
+                    |> String.toInt
+                    |> Maybe.withDefault 0
+    in
     div []
-        [ h3 [ class "text-center" ]
+        [ h3 [ class "text-center text-lg mt-3" ]
+            [ text "Work Time"
+            ]
+        , update_time_wrapper
+            min
+            (\val ->
+                parse_input val
+                    |> Minute
+                    |> UpdateWorkTimeMinute
+            )
+            sec
+            (\val ->
+                parse_input val
+                    |> Second
+                    |> UpdateWorkTimeSecond
+            )
+        ]
+
+
+break_time : ( Minute, Second ) -> Html Msg
+break_time ( min, sec ) =
+    let
+        parse_input =
+            \val -> val |> String.toInt |> Maybe.withDefault 0
+    in
+    div []
+        [ h3
+            [ class "text-center text-lg mt-3" ]
             [ text "Break Time"
             ]
-        , div [ class "flex items-center py-3 space-x-2" ]
-            [ div []
-                [ div [] [ label [] [ text "Mins" ] ]
-                , div [] [ custom_input min (\val -> UpdateBreakTimeMinute (Minute (Maybe.withDefault 0 (String.toInt val)))) ]
-                ]
-            , div []
-                [ div [] [ label [] [ text "Sec" ] ]
-                , div []
-                    [ custom_input sec (\val -> UpdateBreakTimeSecond (Second (Maybe.withDefault 0 (String.toInt val))))
-                    ]
-                ]
-            ]
+        , update_time_wrapper
+            min
+            (\val ->
+                parse_input val
+                    |> Minute
+                    |> UpdateBreakTimeMinute
+            )
+            sec
+            (\val ->
+                parse_input val
+                    |> Second
+                    |> UpdateBreakTimeSecond
+            )
         ]
 
 
@@ -145,18 +211,24 @@ sec_to_tuple second =
 
 sec_to_string : Second -> String
 sec_to_string second =
-    let
-        ( Minute min, Second sec ) =
-            sec_to_tuple second
+    case sec_to_tuple second of
+        ( Minute min, Second sec ) ->
+            let
+                sec_str =
+                    if sec < 10 then
+                        "0" ++ String.fromInt sec
 
-        sec_str =
-            if sec < 10 then
-                "0" ++ String.fromInt sec
+                    else
+                        String.fromInt sec
 
-            else
-                String.fromInt sec
-    in
-    String.fromInt min ++ ":" ++ sec_str
+                min_str =
+                    if min < 10 then
+                        "0" ++ String.fromInt min
+
+                    else
+                        String.fromInt min
+            in
+            min_str ++ ":" ++ sec_str
 
 
 view : Model -> Browser.Document Msg
@@ -203,34 +275,6 @@ view model =
             ]
         ]
     }
-
-
-default_work_time : ( Minute, Second )
-default_work_time =
-    ( Minute 10, Second 0 )
-
-
-default_break_time : ( Minute, Second )
-default_break_time =
-    ( Minute 5, Second 0 )
-
-
-update_second_by : Second -> Int -> Second
-update_second_by second by =
-    case second of
-        Second s ->
-            Second (s + by)
-
-
-tuple_to_sec : ( Minute, Second ) -> Second
-tuple_to_sec ( min, Second sec ) =
-    let
-        m =
-            case min_to_sec min of
-                Second s ->
-                    s
-    in
-    Second (m + sec)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -307,7 +351,7 @@ update msg model =
 
         Reset ->
             ( { model
-                | work_time = tuple_to_sec model.set_work_time -- (min_to_sec <| Tuple.first model.set_work_time) + Tuple.second model.set_break_time
+                | work_time = tuple_to_sec model.set_work_time
                 , break_time = tuple_to_sec model.set_break_time
                 , active_timer = Work Paused
               }
@@ -320,44 +364,56 @@ update msg model =
                     let
                         new_sec =
                             update_second_by model.break_time -1
-                    in
-                    case new_sec of
-                        Second s ->
-                            if s < 0 then
-                                ( { model
-                                    | break_time = tuple_to_sec model.set_break_time
-                                    , active_timer = Work Active
-                                    , work_time = tuple_to_sec model.set_work_time
-                                  }
-                                , Cmd.none
-                                )
 
-                            else
-                                ( { model | break_time = new_sec }, Cmd.none )
+                        is_sec_below_zero =
+                            \int_s ->
+                                if int_s < 0 then
+                                    True
+
+                                else
+                                    False
+                    in
+                    if map_s is_sec_below_zero new_sec then
+                        ( { model
+                            | break_time = tuple_to_sec model.set_break_time
+                            , active_timer = Work Active
+                            , work_time = tuple_to_sec model.set_work_time
+                          }
+                        , Cmd.none
+                        )
+
+                    else
+                        ( { model | break_time = new_sec }, Cmd.none )
 
                 Work Active ->
                     let
                         new_sec =
                             update_second_by model.work_time -1
-                    in
-                    case new_sec of
-                        Second s ->
-                            if s < 0 then
-                                ( { model
-                                    | break_time = tuple_to_sec model.set_break_time
-                                    , work_time = tuple_to_sec model.set_work_time
-                                    , active_timer = Break Active
-                                  }
-                                , Cmd.none
-                                )
 
-                            else
-                                ( { model | work_time = new_sec }, Cmd.none )
+                        is_sec_below_zero =
+                            \int_s ->
+                                if int_s < 0 then
+                                    True
+
+                                else
+                                    False
+                    in
+                    if map_s is_sec_below_zero new_sec then
+                        ( { model
+                            | break_time = tuple_to_sec model.set_break_time
+                            , work_time = tuple_to_sec model.set_work_time
+                            , active_timer = Break Active
+                          }
+                        , Cmd.none
+                        )
+
+                    else
+                        ( { model | work_time = new_sec }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
-        ChangedUrl url ->
+        ChangedUrl _ ->
             ( model, Cmd.none )
 
         ClickedLink urlRequest ->
