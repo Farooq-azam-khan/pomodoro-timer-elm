@@ -397,7 +397,7 @@ subscriptions model =
 
 
 init : flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
-init _ url key =
+init _ _ key =
     ( { set_work_time = default_work_time
       , set_break_time = default_break_time
       , work_time = min_to_sec <| Tuple.first default_work_time
