@@ -68,12 +68,12 @@ map_min f minute =
             f min
 
 
-default_work_time : ( Minute, Second )
+default_work_time : SetTime
 default_work_time =
     ( Minute 10, Second 0 )
 
 
-default_break_time : ( Minute, Second )
+default_break_time : SetTime
 default_break_time =
     ( Minute 5, Second 0 )
 
@@ -91,27 +91,6 @@ tuple_to_sec ( min, Second sec ) =
 min_to_sec : Minute -> Second
 min_to_sec minute =
     map_min (\int_min -> Second (int_min * 60)) minute
-
-
-custom_button : msg -> Html msg -> Html msg
-custom_button msg children =
-    button
-        [ class "bg-indigo-700 px-7 py-2 text-2xl text-white rounded-md"
-        , onClick msg
-        ]
-        [ children
-        ]
-
-
-custom_input : Int -> (String -> msg) -> Html msg
-custom_input time msg =
-    input
-        [ onInput msg
-        , class "bg-indigo-100 border border-1 border-indigo-500 focus:ring hover:ring px-1 py-1 rounded-md"
-        , type_ "number"
-        , value <| String.fromInt time
-        ]
-        []
 
 
 update_time_wrapper :
@@ -277,6 +256,27 @@ view model =
     }
 
 
+custom_button : msg -> Html msg -> Html msg
+custom_button msg children =
+    button
+        [ class "bg-indigo-700 px-7 py-2 text-2xl text-white rounded-md"
+        , onClick msg
+        ]
+        [ children
+        ]
+
+
+custom_input : Int -> (String -> msg) -> Html msg
+custom_input time msg =
+    input
+        [ onInput msg
+        , class "bg-indigo-100 border border-1 border-indigo-500 focus:ring hover:ring px-1 py-1 rounded-md"
+        , type_ "number"
+        , value <| String.fromInt time
+        ]
+        []
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -291,8 +291,6 @@ update msg model =
             ( { model
                 | set_work_time = new_set_worktime
                 , work_time = tuple_to_sec new_set_worktime
-
-                -- , active_timer = Work Paused
               }
             , Cmd.none
             )
@@ -305,8 +303,6 @@ update msg model =
             ( { model
                 | set_work_time = new_set_work_time
                 , work_time = tuple_to_sec new_set_work_time
-
-                --, active_timer = Work Paused
               }
             , Cmd.none
             )
@@ -319,8 +315,6 @@ update msg model =
             ( { model
                 | set_break_time = new_set_break_time
                 , break_time = tuple_to_sec new_set_break_time
-
-                -- , active_timer = Break Paused
               }
             , Cmd.none
             )
@@ -333,8 +327,6 @@ update msg model =
             ( { model
                 | set_break_time = new_set_break_time
                 , break_time = tuple_to_sec new_set_break_time
-
-                -- , active_timer = Break Paused
               }
             , Cmd.none
             )
@@ -368,16 +360,8 @@ update msg model =
                     let
                         new_sec =
                             update_second_by model.break_time -1
-
-                        is_sec_below_zero =
-                            \int_s ->
-                                if int_s < 0 then
-                                    True
-
-                                else
-                                    False
                     in
-                    if map_s is_sec_below_zero new_sec then
+                    if is_sec_below_zero new_sec then
                         ( { model
                             | break_time = tuple_to_sec model.set_break_time
                             , active_timer = Work Active
@@ -393,16 +377,8 @@ update msg model =
                     let
                         new_sec =
                             update_second_by model.work_time -1
-
-                        is_sec_below_zero =
-                            \int_s ->
-                                if int_s < 0 then
-                                    True
-
-                                else
-                                    False
                     in
-                    if map_s is_sec_below_zero new_sec then
+                    if is_sec_below_zero new_sec then
                         ( { model
                             | break_time = tuple_to_sec model.set_break_time
                             , work_time = tuple_to_sec model.set_work_time
@@ -427,6 +403,15 @@ update msg model =
 
                 Browser.Internal url ->
                     ( model, Nav.pushUrl model.key (Url.toString url) )
+
+
+is_sec_below_zero : Second -> Bool
+is_sec_below_zero (Second s) =
+    if s < 0 then
+        True
+
+    else
+        False
 
 
 subscriptions : Model -> Sub Msg
